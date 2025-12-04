@@ -1,0 +1,110 @@
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Expense Tracker</title>
+  <style>
+    body{font-family: Arial, sans-serif; max-width:800px; margin:20px auto;}
+    input, select {padding:6px; margin:4px;}
+    button{padding:6px 10px; margin:6px;}
+    .section{border:1px solid #ddd; padding:12px; margin-bottom:12px;}
+    table{width:100%; border-collapse: collapse;}
+    th,td{border:1px solid #ccc; padding:6px; text-align:left;}
+  </style>
+</head>
+<body>
+  <h2>Expense Tracker </h2>
+
+  <div class="section">
+    <h3>Add Expense</h3>
+    <input id="name" placeholder="Name">
+    <input id="amount" placeholder="Amount" type="number">
+    <select id="category">
+      <option>Food</option><option>Transport</option><option>Home</option><option>Work</option><option>Fun</option><option>Misc</option>
+    </select>
+    <input id="month" placeholder="YYYY-MM">
+    <input id="group" placeholder="Group (optional)">
+    <button onclick="addExpense()">Save</button>
+    <div id="addResult"></div>
+  </div>
+
+  <div class="section">
+    <h3>Budgets</h3>
+    <input id="bmonth" placeholder="YYYY-MM">
+    <input id="bcategory" placeholder="Category">
+    <input id="blimit" placeholder="Limit" type="number">
+    <button onclick="setBudget()">Set Budget</button>
+    <div id="budgetResult"></div>
+  </div>
+
+  <div class="section">
+    <h3>Expenses</h3>
+    <button onclick="loadExpenses()">Refresh List</button>
+    <table id="expTable"><thead><tr><th>Name</th><th>Amount</th><th>Category</th><th>Month</th><th>Group</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="section">
+    <h3>Reports</h3>
+    <input id="rmonth" placeholder="YYYY-MM">
+    <button onclick="showTotal()">Monthly Total</button>
+    <button onclick="showCompare()">Compare</button>
+    <div id="reportResult"></div>
+  </div>
+
+  <script>
+    async function addExpense(){
+      const data = {
+        name: document.getElementById('name').value,
+        amount: document.getElementById('amount').value,
+        category: document.getElementById('category').value,
+        month: document.getElementById('month').value || new Date().toISOString().slice(0,7),
+        group: document.getElementById('group').value
+      };
+      const res = await fetch('/api/expenses', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+      document.getElementById('addResult').innerText = 'Saved';
+      loadExpenses();
+    }
+
+    async function setBudget(){
+      const data = {
+        month: document.getElementById('bmonth').value,
+        category: document.getElementById('bcategory').value,
+        limit: document.getElementById('blimit').value
+      };
+      await fetch('/api/budgets', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+      document.getElementById('budgetResult').innerText = 'Budget set';
+    }
+
+    async function loadExpenses(){
+      const res = await fetch('/api/expenses');
+      const items = await res.json();
+      const tbody = document.querySelector('#expTable tbody');
+      tbody.innerHTML = '';
+      items.forEach(it=>{
+        const row = `<tr><td>${it.name}</td><td>${it.amount}</td><td>${it.category}</td><td>${it.month}</td><td>${it.group}</td></tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    async function showTotal(){
+      const month = document.getElementById('rmonth').value;
+      const res = await fetch('/api/reports/total?month=' + month);
+      const j = await res.json();
+      document.getElementById('reportResult').innerText = 'Total: ' + j.total;
+    }
+
+    async function showCompare(){
+      const month = document.getElementById('rmonth').value;
+      const res = await fetch('/api/reports/compare?month=' + month);
+      const arr = await res.json();
+      let out = '';
+      arr.forEach(r=>{ out += r.category + ': ' + r.spent + ' / ' + (r.budget||'None') + ' -> ' + r.status + '\n';});
+      document.getElementById('reportResult').innerText = out;
+    }
+
+    // initial load
+    loadExpenses();
+  </script>
+</body>
+</html>
